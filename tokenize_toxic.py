@@ -7,58 +7,56 @@ import csv
 
 trainDatasetPath = './jigsaw-toxic-comment-classification-challenge/train.csv'
 
-
-class ToxicCommentsRobertaDataset(Dataset):
-    def __init__(self, path, columnName, tokenizer, maxLength=512):
-        """
-        Args:
-            path (string): Path to the csv file with annotations.
-            columnName (string): Name of the column containing the comments.
-            tokenizer: Tokenizer to use for tokenizing the comments.
-            maxLength (int): Maximum length of the tokenized comments.
-        """
-        self.texts = []
-        self.labels_list = []
+class LazyCSVDataset(Dataset):
+    def __init__(self, file_path, tokenizer, text_column_index, label_column_indices, max_length=512):
+        self.file_path = file_path
         self.tokenizer = tokenizer
-        self.maxLength = maxLength
-        with open(path, encoding='utf-8') as f:
-            reader = csv.reader(f)
-            header = next(reader)
-            textColIndex = header.index(columnName)
-            labelColIndices = [header.index(label) for label in ['toxic','severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']]
-            for rowIndex, row in enumerate(reader):
-                text = row[textColIndex]
-                labels = [row[labelColIndex] for labelColIndex in labelColIndices]
-                self.texts.append(text)
-                self.labels_list.append(labels)
-        self.labels = torch.tensor(self.labels_list, dtype=torch.float32)
+        self.text_column_index = text_column_index
+        self.label_column_indices = label_column_indices
+        self.max_length = max_length
+        self.file_path = file_path
+        self.offsets = []
+        self.num_rows = 0
 
+        # Build index of line offsets
+        with open(file_path, 'r') as f:
+            offset = 0
+            for line in f:
+                self.offsets.append(offset)
+                self.num_rows += 1
+                offset += len(line)
 
     def __len__(self):
-        return len(self.texts)
-    
-    def __getitem__(self, index: int):
-        text = self.texts[index]
-        labels = self.labels[index]
-        encoding = self.tokenizer(
-            text,
-            add_special_tokens=True,
-            max_length=self.maxLength,
-            padding='max_length',
-            truncation=True,
-            return_attention_mask=True,
-            return_tensors='pt',
-        )
-        return {
-            'input_ids': encoding['input_ids'].flatten(),
-            'attention_mask': encoding['attention_mask'].flatten(),
-            'labels': labels
-        }
+        return len(self.offsets)
 
-# For testing only!
+    def __getitem__(self, idx):
+        with open(self.file_path, 'r') as f:
+            f.seek(self.offsets[idx])
+            reader = csv.reader(f)
+            next(reader)  # Skip header
+            line = next(reader)
+            text = line[self.text_column_index]
+            labels = [float(line[i]) for i in self.label_column_indices]
+            encoding = self.tokenizer(
+                text,
+                add_special_tokens=True,
+                max_length=self.max_length,
+                padding='max_length',
+                truncation=True,
+                return_attention_mask=True,
+                return_tensors='pt',
+            )
+            return {
+                'input_ids': encoding['input_ids'].flatten(),
+                'attention_mask': encoding['attention_mask'].flatten(),
+                'labels': torch.tensor(labels, dtype=torch.float32)
+            }
+
 # if __name__ == '__main__':
-#     tokenizer = RobertaTokenizerFast.from_pretrained('roberta-base')
-#     toxicDataset = ToxicCommentsRobertaDataset(trainDatasetPath, 'comment_text', tokenizer=tokenizer)
+#     tokenizer = RobertaTokenizerFast.from_pretrained("roberta-base")
+#     text_column_index = 1
+#     label_column_indices = [2, 3, 4, 5, 6, 7]
+#     max_length = 512
+#     dataset = LazyCSVDataset(trainDatasetPath, tokenizer, text_column_index, label_column_indices, max_length)
+#     print(dataset[1]['input_ids'])
     
-#     if len(toxicDataset) > 0:
-#         print(f"\nLength of dataset: {len(toxicDataset)}")
