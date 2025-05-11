@@ -5,7 +5,8 @@ from collections import Counter
 import re
 import csv
 
-trainDatasetPath = './jigsaw-toxic-comment-classification-challenge/train.csv'
+trainDatasetPath = './train.csv'
+
 
 class ToxicCommentsRobertaDataset(Dataset):
     def __init__(self, path, columnName, tokenizer, maxLength=512):
@@ -24,17 +25,32 @@ class ToxicCommentsRobertaDataset(Dataset):
             reader = csv.reader(f)
             header = next(reader)
             textColIndex = header.index(columnName)
-            labelColIndices = [header.index(label) for label in ['toxic','severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']]
+            labelColIndices = [
+                header.index(label)
+                for label in [
+                    "toxic",
+                    "severe_toxic",
+                    "obscene",
+                    "threat",
+                    "insult",
+                    "identity_hate",
+                ]
+            ]
             for rowIndex, row in enumerate(reader):
                 text = row[textColIndex]
-                labels = [float(row[labelColIndex]) for labelColIndex in labelColIndices]
+                # Aggregate labels: if any label is 1, the aggregated label is 1; otherwise, 0
+                labels = any(
+                    [int(row[labelColIndex]) for labelColIndex in labelColIndices]
+                    # int(row[labelColIndex]) > 0  for labelColIndex in labelColIndices
+                )
+
                 self.texts.append(text)
                 self.labels_list.append(labels)
         self.labels = torch.tensor(self.labels_list, dtype=torch.float32)
 
     def __len__(self):
         return len(self.texts)
-    
+
     def __getitem__(self, index: int):
         text = self.texts[index]
         labels = self.labels[index]
@@ -42,21 +58,13 @@ class ToxicCommentsRobertaDataset(Dataset):
             text,
             add_special_tokens=True,
             max_length=self.maxLength,
-            padding='max_length',
+            padding="max_length",
             truncation=True,
             return_attention_mask=True,
-            return_tensors='pt',
+            return_tensors="pt",
         )
         return {
-            'input_ids': encoding['input_ids'].flatten(),
-            'attention_mask': encoding['attention_mask'].flatten(),
-            'labels': labels
+            "input_ids": encoding["input_ids"].flatten(),
+            "attention_mask": encoding["attention_mask"].flatten(),
+            "labels": labels,
         }
-
-# if __name__ == '__main__' : 
-#     tokenizer = RobertaTokenizerFast.from_pretrained('roberta-base')
-#     toxicDataset = ToxicCommentsRobertaDataset(trainDatasetPath, 'comment_text', tokenizer=tokenizer)
-    
-#     if len(toxicDataset) > 0:
-#         print(f"\nLength of dataset: {len(toxicDataset)}")
-#         print(toxicDataset[1])
