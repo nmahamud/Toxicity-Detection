@@ -25,40 +25,17 @@ class ToxicCommentsRobertaDataset(Dataset):
             reader = csv.reader(f)
             header = next(reader)
             textColIndex = header.index(columnName)
-            labelColIndices = [
-                header.index(label)
-                for label in [
-                    "toxic",
-                    "severe_toxic",
-                    "obscene",
-                    "threat",
-                    "insult",
-                    "identity_hate",
-                ]
-            ]
-            printed = False
+            labelColIndices = [header.index(label) for label in ['toxic','severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']]
             for rowIndex, row in enumerate(reader):
                 text = row[textColIndex]
-                # Aggregate labels: if any label is 1, the aggregated label is 1; otherwise, 0
-                labels = [int(row[labelColIndex]) for labelColIndex in labelColIndices]
-                if not printed:
-                    print(labels)
-                    printed = True
-                # labels = any(
-                #     [int(row[labelColIndex]) for labelColIndex in labelColIndices]
-                #     # int(row[labelColIndex]) > 0  for labelColIndex in labelColIndices
-                # )
-
+                labels = [float(row[labelColIndex]) for labelColIndex in labelColIndices]
                 self.texts.append(text)
                 self.labels_list.append(labels)
         self.labels = torch.tensor(self.labels_list, dtype=torch.float32)
-        pos_labels = self.labels.sum(dim=0)
-        neg_labels = self.labels.shape[0] - pos_labels
-        self.weights = neg_labels/pos_labels
 
     def __len__(self):
         return len(self.texts)
-
+    
     def __getitem__(self, index: int):
         text = self.texts[index]
         labels = self.labels[index]
@@ -66,13 +43,13 @@ class ToxicCommentsRobertaDataset(Dataset):
             text,
             add_special_tokens=True,
             max_length=self.maxLength,
-            padding="max_length",
+            padding='max_length',
             truncation=True,
             return_attention_mask=True,
-            return_tensors="pt",
+            return_tensors='pt',
         )
         return {
-            "input_ids": encoding["input_ids"].flatten(),
-            "attention_mask": encoding["attention_mask"].flatten(),
-            "labels": labels,
+            'input_ids': encoding['input_ids'].flatten(),
+            'attention_mask': encoding['attention_mask'].flatten(),
+            'labels': labels
         }

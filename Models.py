@@ -11,6 +11,7 @@ EPOCHS=1
 
 class distilRB_base(nn.Module):
     def __init__(self, multilabel: bool=False):
+        super(distilRB_base, self).__init__()
         self.base_model = AutoModel.from_pretrained("distilbert/distilroberta-base")
         self.activation = nn.Linear(self.base_model.config.hidden_size, NUM_CLASSES if multilabel else 1)
     
@@ -22,6 +23,7 @@ class distilRB_base(nn.Module):
 
 class distilRB_hate(nn.Module):
     def __init__(self, multilabel: bool=False):
+        super(distilRB_hate, self).__init__()
         self.base_model = AutoModel.from_pretrained("distilbert/distilroberta-base")
         self.hate_model = AutoModelForSequenceClassification.from_pretrained("tomh/toxigen_roberta") 
         for param in self.hate_model.parameters():
@@ -41,6 +43,7 @@ class distilRB_hate(nn.Module):
 
 class distilRB_sem(nn.Module):
     def __init__(self, multilabel: bool=False):
+        super(distilRB_sem, self).__init__()
         self.base_model = AutoModel.from_pretrained("distilbert/distilroberta-base")
         self.sent_anal = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment")
         for param in self.sent_anal.parameters():
@@ -58,6 +61,7 @@ class distilRB_sem(nn.Module):
 
 class distilRB_combine(nn.Module):
     def __init__(self, multilabel: bool=False):
+        super(distilRB_combine, self).__init__()
         self.base_model = AutoModel.from_pretrained("distilbert/distilroberta-base")
         self.sent_anal = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment")
         self.hate_model = AutoModelForSequenceClassification.from_pretrained("tomh/toxigen_roberta") 
