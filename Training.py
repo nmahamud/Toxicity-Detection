@@ -1,7 +1,13 @@
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-import Constants
+
+NUM_CLASSES = 6
+NUM_SENTIMENT = 3
+NUM_HATE = 2
+
+BATCH_SIZE=32
+EPOCHS=1
 
 
 def trim(batch: dict[str, torch.tensor]):
@@ -22,11 +28,10 @@ def train_model(model, dataset: Dataset, lr=1e-5, weight_decay=1e-3):
 
     optimizer = torch.optim.AdamW(lr=lr, weight_decay=weight_decay, params=model.parameters())
 
-
     train_dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, drop_last=True, shuffle=True)
     loss_per_epoch = []
 
-    criterion = torch.nn.BCELoss()
+    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=dataset.weights)
 
     model.train()
     for epoch in range(EPOCHS):
@@ -39,7 +44,6 @@ def train_model(model, dataset: Dataset, lr=1e-5, weight_decay=1e-3):
             labels = batch["labels"].to(device).type(torch.float16) # Changed line
             with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
                 outputs = model(**inputs).squeeze()
-
 
             loss = criterion(outputs, labels)
             losses.append(loss.item())

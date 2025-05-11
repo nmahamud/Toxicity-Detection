@@ -36,17 +36,25 @@ class ToxicCommentsRobertaDataset(Dataset):
                     "identity_hate",
                 ]
             ]
+            printed = False
             for rowIndex, row in enumerate(reader):
                 text = row[textColIndex]
                 # Aggregate labels: if any label is 1, the aggregated label is 1; otherwise, 0
-                labels = any(
-                    [int(row[labelColIndex]) for labelColIndex in labelColIndices]
-                    # int(row[labelColIndex]) > 0  for labelColIndex in labelColIndices
-                )
+                labels = [int(row[labelColIndex]) for labelColIndex in labelColIndices]
+                if not printed:
+                    print(labels)
+                    printed = True
+                # labels = any(
+                #     [int(row[labelColIndex]) for labelColIndex in labelColIndices]
+                #     # int(row[labelColIndex]) > 0  for labelColIndex in labelColIndices
+                # )
 
                 self.texts.append(text)
                 self.labels_list.append(labels)
         self.labels = torch.tensor(self.labels_list, dtype=torch.float32)
+        pos_labels = self.labels.sum(dim=0)
+        neg_labels = self.labels.shape[0] - pos_labels
+        self.weights = neg_labels/pos_labels
 
     def __len__(self):
         return len(self.texts)
