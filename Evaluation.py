@@ -1,3 +1,6 @@
+# TEAM NAME: Monkeys
+# TEAM MEMBERS: Aawab Mahmood, Nazif Mahamud, Kevin Wei
+
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -5,46 +8,46 @@ import Constants
 import trim from Training.py
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 import numpy as np
+from sklearn.metrics import confusion_matrix
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix
 
-def evaluate_model(model, df, tokenizer, device='cuda'):
+def evalModel(model, dataset: ToxicCommentsRobertaEvalDataset, device='cuda'):
     model.to(device)
     model.eval()
 
+    evalDataLoader = DataLoader(dataset, batch_size=BATCH_SIZE)
+
     preds = []
-    true_labels = []
+    trueLabels = []
 
     with torch.no_grad():
-        for index in range(len(df)):
-            text = df.iloc[index]['comment_text']
-            label = df.iloc[index]['labels']
+        for batch in evalDataLoader:
+            inputs = {k: v.to(device) for k, v in batch.items() if k != "labels"}
+            labels = batch["labels"].to(device)
 
-            encoding = tokenizer(
-                text,
-                add_special_tokens=True,
-                max_length=512,
-                padding="max_length",
-                truncation=True,
-                return_attention_mask=True,
-                return_tensors="pt",
-            )
-
-            inputs = {k: v.to(device) for k, v in encoding.items()}
             with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
                 outputs = model(**inputs).squeeze()
 
-            # Sigmoid act so just check if >0.5
-            pred = (outputs > 0.5).long()
+            probs = torch.sigmoid(outputs)
+            pred = (probs > 0.5).int().cpu().numpy()
 
-            preds.append(pred.cpu().item())
-            true_labels.append(label)
+            preds.extend(pred)  
+            trueLabels.extend(labels.cpu().numpy())  
 
-    f1 = sklearn.metrics.f1_score(true_labels, preds, average='binary')
-    accuracy = sklearn.metrics.accuracy_score(true_labels, preds)
-    precision = sklearn.metrics.precision_score(true_labels, preds)
-    recall = sklearn.metrics.recall_score(true_labels, preds)
+    preds = np.array(preds)
+    trueLabels = np.array(trueLabels) 
+
+    print(preds.shape)
+    print(trueLabels.shape)
+
+    cm = multilabel_confusion_matrix(trueLabels, preds)
+
+    f1 = sklearn.metrics.f1_score(trueLabels, preds, average='macro')
+    accuracy = sklearn.metrics.accuracy_score(trueLabels, preds)
+    precision = sklearn.metrics.precision_score(trueLabels, preds, average='macro')
+    recall = sklearn.metrics.recall_score(trueLabels, preds, average='macro')
 
     metrics = {
         'accuracy': float(accuracy),
@@ -53,55 +56,59 @@ def evaluate_model(model, df, tokenizer, device='cuda'):
         'f1': float(f1)
     }
 
-    return metrics
+    return metrics, preds, trueLabels, cm
 
+def visualize(dfFiltered, metrics, lossPerEpoch, trueLabels, preds, cm):
+    dfMelted = dfFiltered.melt(
+        id_vars=['id', 'comment_text'],
+        value_vars=['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate'],
+        var_name='labels',
+        value_name='label_value' 
+    )
 
-def visualize_metrics(df_filtered, metrics, loss_per_epoch, true_labels, preds):
-    '''
-        Visualizes all metrics after training
-    '''
+    dfMelted = dfMelted[dfMelted['label_value'] != -1]
+
     plt.figure(figsize=(8, 6))
-    sns.countplot(x='labels', data=df_filtered)
+    sns.countplot(x='labels', data=dfMelted[dfMelted['label_value'] == 1])
     plt.title('Distribution of Labels in Test Data')
     plt.xlabel('Label (0: Non-Toxic, 1: Toxic)')
     plt.ylabel('Count')
+    plt.xticks(rotation=45, ha='right')  
     plt.show()
 
-    # 2. Metrics Visualization
-    metrics_df = pd.DataFrame([metrics])
-    metrics_df = metrics_df.T.reset_index()
-    metrics_df.columns = ['Metric', 'Value']
 
+    labelNames = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate'] 
+    f1Scores = sklearn.metrics.f1_score(trueLabels, preds, average=None)
 
     plt.figure(figsize=(10, 6))
-    sns.barplot(x='Metric', y='Value', data=metrics_df)
-    plt.title('Model Performance Metrics')
-    plt.ylim(0, 1) # Assuming metrics are between 0 and 1
-    plt.ylabel('Score')
+    sns.barplot(x=labelNames, y=f1Scores)
+    plt.title('F1 Score per Label')
+    plt.ylim(0, 1)
+    plt.ylabel('F1 Score')
+    plt.xticks(rotation=45, ha='right') 
     plt.show()
 
 
-    # 3. Confusion Matrix (requires predictions and true labels)
+    labelNames = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
+    numLabels = len(labelNames)
 
-    # Assuming 'preds' and 'true_labels' were saved during evaluation.
-    # Replace these with the actual predictions and true labels from evaluate_model
-    # preds = ...
-    # true_labels = ...
-    cm = confusion_matrix(true_labels, preds)
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                xticklabels=['Predicted Non-Toxic', 'Predicted Toxic'],
-                yticklabels=['Actual Non-Toxic', 'Actual Toxic'])
-    plt.title('Confusion Matrix')
+    cm_all = np.zeros((2, 2), dtype=int) 
+    for i in range(numLabels):
+        cm_all += cm[i] 
+
+    plt.figure(figsize=(6, 4)) 
+    sns.heatmap(cm_all, annot=True, fmt='d', cmap='Blues',
+                xticklabels=['Predicted Negative', 'Predicted Positive'],
+                yticklabels=['Actual Negative', 'Actual Positive'])
+    plt.title('Overall Confusion Matrix (All Labels)')
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
     plt.show()
 
-    # 4.  Loss Curve (if you saved the loss_per_epoch during training)
 
     plt.figure(figsize=(10, 6))
-    for epoch_losses in loss_per_epoch:
-        plt.plot(range(len(epoch_losses)), epoch_losses)
+    for losses in lossPerEpoch:
+        plt.plot(range(len(losses)), losses)
     plt.title('Training Loss per Epoch')
     plt.xlabel('Batch')
     plt.ylabel('Loss')

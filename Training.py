@@ -1,3 +1,6 @@
+# TEAM NAME: Monkeys
+# TEAM MEMBERS: Aawab Mahmood, Nazif Mahamud, Kevin Wei
+
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
@@ -9,16 +12,15 @@ NUM_HATE = 2
 BATCH_SIZE=32
 EPOCHS=1
 
-
 def trim(batch: dict[str, torch.tensor]):
     masks = batch['attention_mask']
-    max_len = torch.max(torch.sum(masks, dim=1))
+    maxLen = torch.max(torch.sum(masks, dim=1))
 
     if batch['labels'].shape == batch['input_ids'].shape:
-        batch['labels'] = batch['labels'][:, :max_len]
+        batch['labels'] = batch['labels'][:, :maxLen]
 
-    batch['input_ids'] = batch['input_ids'][:, :max_len]
-    batch['attention_mask'] = batch['attention_mask'][:, :max_len]
+    batch['input_ids'] = batch['input_ids'][:, :maxLen]
+    batch['attention_mask'] = batch['attention_mask'][:, :maxLen]
 
     return batch
 
@@ -28,20 +30,21 @@ def train_model(model, dataset: Dataset, lr=1e-5, weight_decay=1e-3):
 
     optimizer = torch.optim.AdamW(lr=lr, weight_decay=weight_decay, params=model.parameters())
 
-    train_dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, drop_last=True, shuffle=True)
-    loss_per_epoch = []
 
-    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=dataset.weights)
+    trainDataLoader = DataLoader(dataset, batch_size=BATCH_SIZE, drop_last=True, shuffle=True)
+    lossPerEpoch = []
+
+    criterion = torch.nn.BCEWithLogitsLoss()
 
     model.train()
     for epoch in range(EPOCHS):
         losses = []
-        for batch in train_dataloader:
+        for batch in trainDataLoader:
             batch = trim(batch)
 
             inputs = {k: v.to(device) for k, v in batch.items() if k != "labels"}
-            # Cast labels to float16 before loss calculation
-            labels = batch["labels"].to(device).type(torch.float16) # Changed line
+
+            labels = batch["labels"].to(device)
             with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
                 outputs = model(**inputs).squeeze()
 
@@ -51,8 +54,7 @@ def train_model(model, dataset: Dataset, lr=1e-5, weight_decay=1e-3):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        loss_per_epoch.append(losses)
+            
+        lossPerEpoch.append(losses)
 
-    return loss_per_epoch
-    
-
+    return lossPerEpoch
