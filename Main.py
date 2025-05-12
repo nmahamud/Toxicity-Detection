@@ -1,6 +1,9 @@
 # TEAM NAME: Monkeys
 # TEAM MEMBERS: Aawab Mahmood, Nazif Mahamud, Kevin Wei
 
+# Description: This code file runs our main function(), which runs the actual preprocessing, training, eval and metric printing
+# System: Compiled into the .ipynb and ran on our Google Colab instances and local PCs
+
 import torch
 from torch.utils.data import DataLoader, Dataset
 from transformers import RobertaTokenizerFast

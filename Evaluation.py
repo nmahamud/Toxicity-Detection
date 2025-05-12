@@ -1,6 +1,9 @@
 # TEAM NAME: Monkeys
 # TEAM MEMBERS: Aawab Mahmood, Nazif Mahamud, Kevin Wei
 
+# Description: This code file houses our main evaluation and metric/graph/figure printing functions
+# System: Compiled into the .ipynb and ran on our Google Colab instances and local PCs
+
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset

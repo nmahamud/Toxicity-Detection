@@ -1,6 +1,10 @@
 # TEAM NAME: Monkeys
 # TEAM MEMBERS: Aawab Mahmood, Nazif Mahamud, Kevin Wei
 
+# Description: This code file houses our Tokenization code inside the custom dataloaders for each of the train and test datasets
+# System: Compiled into the .ipynb and ran on our Google Colab instances and local PCs
+# Area of NLP: I: Syntax/Classification: Specifically, Tokenization
+
 import torch
 from torch.utils.data import Dataset, dataloader
 from transformers import RobertaTokenizerFast

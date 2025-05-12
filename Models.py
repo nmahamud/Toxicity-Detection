@@ -1,6 +1,11 @@
 # TEAM NAME: Monkeys
 # TEAM MEMBERS: Aawab Mahmood, Nazif Mahamud, Kevin Wei
 
+# Description: This code file houses our model architectures for each of the 4 models we created/improved upon and changed
+# System: Compiled into the .ipynb and ran on our Google Colab instances and local PC's
+# Area of NLP: III: Language Modeling/Transformers: Specifically, Task fine-tuning and transformers, alongside IV: Applications:
+# specifically Language and Human Psychology aka advanced sentiment analysis
+
 from torch import nn
 import torch
 from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassification
