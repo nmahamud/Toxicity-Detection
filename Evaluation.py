@@ -4,7 +4,6 @@
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
-import Constants
 import trim from Training.py
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 import numpy as np
@@ -12,6 +11,13 @@ from sklearn.metrics import confusion_matrix
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+NUM_CLASSES = 6
+NUM_SENTIMENT = 3
+NUM_HATE = 2
+
+BATCH_SIZE=32
+EPOCHS=1
 
 def evalModel(model, dataset: ToxicCommentsRobertaEvalDataset, device='cuda'):
     model.to(device)
